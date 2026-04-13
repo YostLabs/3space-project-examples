@@ -61,7 +61,7 @@ class ThreespaceBone(Bone):
         
         #For getting the yaw offset, going to use a known axis order
         #instead of having seperate code for each possible order
-        order = self._sensor.get_settings("axis_order")
+        order = self._sensor.readAxisOrder()
         order = AxisOrder(order)
         EUN = AxisOrder("EUN")
 
@@ -100,12 +100,12 @@ class ThreespaceBone(Bone):
         if self._sensor is None:
             return
         base_offset = yl_quat.quat_mul(self.yaw_offset, self.global_rotation)
-        self._sensor.set_settings(base_offset=yl_quat.quat_inverse(base_offset))
+        self._sensor.writeBaseOffset(yl_quat.quat_inverse(base_offset))
         self._sensor.setOffsetWithCurrentOrientation()
         if tare:
-            self._sensor.set_settings(tare_quat=yl_quat.quat_inverse(self.yaw_offset))
+            self._sensor.writeTareQuat(yl_quat.quat_inverse(self.yaw_offset))
         else:
-            self._sensor.set_settings(tare_quat=[0, 0, 0, 1])
+            self._sensor.writeTareQuat([0, 0, 0, 1])
 
     def set_sensor(self, sensor: ThreespaceSensor):
         """
@@ -122,15 +122,15 @@ class ThreespaceBone(Bone):
     def configure_sensor(self):
         if not self._sensor:
             return
-        self._sensor.set_settings(axis_order=self.axis_order.to_xyz_string())
+        self._sensor.writeAxisOrder(self.axis_order.to_xyz_string())
 
     def start_updating(self):
         """Start streaming tared orientation from the sensor."""
         if self._sensor is None:
             return
-        self._sensor.set_settings(stream_slots=[StreamableCommands.GetTaredOrientation], 
-                                  stream_hz=self.update_rate, 
-                                  axis_order=self.axis_order.to_xyz_string())
+        self._sensor.write_settings(stream_slots=[StreamableCommands.GetTaredOrientation],
+                                    stream_hz=self.update_rate,
+                                    axis_order=self.axis_order.to_xyz_string())
         self._sensor.startStreaming()  # Stream tared orientation
     
     def stop_updating(self):

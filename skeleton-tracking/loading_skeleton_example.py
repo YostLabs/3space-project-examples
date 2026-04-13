@@ -47,9 +47,6 @@ while not glfw.window_should_close(window):
     camera_control.update_camera_pos()
     camera_control.update_camera_rotation()
 
-    skeleton.left_upper_leg.mode = BoneMode.STATIC_GLOBAL
-    skeleton.right_upper_leg.mode = BoneMode.STATIC_GLOBAL
-
     skeleton.right_upper_arm.local_rotation = yl_quat.quat_from_euler([90, -90], "zx", degrees=True)
 
     visual_skeleton.update_pose()
