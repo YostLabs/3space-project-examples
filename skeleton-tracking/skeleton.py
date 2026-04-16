@@ -16,6 +16,8 @@ class Bone:
         self.__global_rotation = [0, 0, 0, 1]
         self.__local_rotation = [0, 0, 0, 1]
 
+        self.axis_order: AxisOrder = None
+
         self.__local_rotation_dirty = False
         self.__global_rotation_dirty = False
 
@@ -201,6 +203,10 @@ class Skeleton(Generic[BoneT]):
         self.right_lower_leg: BoneT = bone_class(mode=bone_mode, parent=self.right_upper_leg)
         self.right_kneecap: BoneT = bone_class(mode=bone_mode, parent=self.right_lower_leg)
         self.right_foot: BoneT = bone_class(mode=bone_mode, parent=self.right_lower_leg)
+
+        # Propagate the default axis order to all bones
+        for bone in self.get_all_bones():
+            bone.axis_order = self.__axis_order
     
     @property
     def axis_order(self):
@@ -211,6 +217,8 @@ class Skeleton(Generic[BoneT]):
     def axis_order(self, value: AxisOrder):
         """Set the axis order of the skeleton, which represents the expected facing direction and up direction of the model."""
         self.__axis_order = value
+        for bone in self.get_all_bones():
+            bone.axis_order = value
 
     def get_all_bones(self) -> list[BoneT]:
         """Get all bone objects in the skeleton."""
