@@ -29,6 +29,7 @@ class Joint:
     # The order of euler decomposition. Configurable to use the best decomp order
     # to avoid singularities for each joint.
     decomp_order: str = "zxy"
+    axis_order: AxisOrder = AxisOrder("NUE")
     
     # Whether this joint is on the left side of the body (for angle sign conventions)
     left_side: bool = False
@@ -91,7 +92,7 @@ class Joint:
     def compute_angles(self):
         #Get bone rotation and convert to expected NUE axis order
         rotation = self.bone.local_rotation
-        rotation = self.bone.axis_order.swap_to(AxisOrder("NUE"), rotation, rotational=True)
+        rotation = self.bone.axis_order.swap_to(self.axis_order, rotation, rotational=True)
 
         #Decompose into Euler Angles using the specified order
         self.angles = list(yl_quat.quat_to_euler_angles(rotation, self.decomp_order))
@@ -156,17 +157,17 @@ class Joint:
     @property
     def flexion_index(self):
         self._require_tait_bryan()
-        return self.decomp_order.index('z')
+        return self.decomp_order.lower().index('z')
     
     @property
     def adduction_index(self):
         self._require_tait_bryan()
-        return self.decomp_order.index('x')
+        return self.decomp_order.lower().index('x')
     
     @property
     def internal_rotation_index(self):
         self._require_tait_bryan()
-        return self.decomp_order.index('y')
+        return self.decomp_order.lower().index('y')
 
     @property
     def flexion_name(self):
@@ -212,7 +213,7 @@ class Joint:
         rotation = yl_quat.quat_from_euler(self.angles, self.decomp_order, degrees=True)
 
         #Swap back to the bone's actual axis order
-        rotation = AxisOrder("NUE").swap_to(self.bone.axis_order, rotation, rotational=True)
+        rotation = self.axis_order.swap_to(self.bone.axis_order, rotation, rotational=True)
         self.bone.local_rotation = rotation
 
 class JointAnalyzer:
@@ -319,9 +320,19 @@ class JointAnalyzer:
                                 })
 
         # Right arm
+        #Note: The right shoulder is more complicated than any other joint, even the other shoulder, because it uses proper euler
+        #angles, and those decomp orders use acos for the middle angle, which has a range of 0-180. This means to rotate "backwards",
+        #the other axes must first rotate to allow positive angles to go the opposite direction before then rotating back. The right
+        #shoulder elevation with the default axis order of NUE means the elevation would be negative/backwards, and thus the computation 
+        #causes the plane of elevation and axial rotation to go to 180 to allow the elevation to be positive. To fix this, we change the
+        #mathematical axis order from NUE to SDE just for the right shoulder. This maintains the system as right handed, while allowing
+        #the elevation to be naturally positive. This does cause the Up axis and to change sign, but this is fixed by simply negating
+        #the resulting euler angles for the plane of elevation and axial rotation. The visual axis order expressed by the bone is still
+        #NUE to be consistent with the rest of the model, it is only mathematically in the joint calculation that it is treated as SDE. 
         self.right_shoulder = Joint(bone=skeleton.right_upper_arm, left_side=False,
                                     primary_name="right_shoulder", secondary_name="right_upper_arm",
                                     decomp_order="yxy",
+                                    axis_order=AxisOrder("SDE"),
                                     axis_names=("Plane of Elevation", "Elevation", "internal/external rotation"),
                                     ranges={
                                         0: (-180.0, 180.0),
@@ -329,10 +340,34 @@ class JointAnalyzer:
                                         2: (-90.0, 90.0),
                                     },
                                     negate_axes={
-                                        0: False,
-                                        1: True,
-                                        2: False
+                                        0: True,
+                                        1: False,
+                                        2: True
                                     })
+        
+        #You can try representing the shoulder the same as the other joints using ZXY decomp order, but this
+        #will more frequently cause gimbal lock. And more importantly, the angles will be unstable whenever the 
+        #adduction exceeds 90 degrees. This is due to the euler angle calculation using asin which has a range of 
+        #-90 to 90, so when the arm is raised above 90 degrees, the other axes will flip to compensate, resulting 
+        #in large angle changes in ranges that do not make sense. You could attempt to fix this by changing the 0 
+        #position of the shoulder to be when t-posing, but even then angles can easily exceed -90 to 90. For these
+        #reasons it is recommended to use the proper Euler angle decomposition for the shoulder.
+        #Note: Even the proper euler angles will have a similar jump if the arm exceeds 180 degrees of elevation, 
+        #but this is less common.
+        # self.right_shoulder = Joint(bone=skeleton.right_upper_arm, left_side=False,
+        #                             primary_name="right_shoulder", secondary_name="right_upper_arm",
+        #                             decomp_order="ZXY",
+        #                             axis_names=("Flexion/Extension", "Abduction/Adduction", "internal/external rotation"),
+        #                             ranges={
+        #                                 "flexion": (-180.0, 180.0),
+        #                                 "adduction": (0.0, 180.0),
+        #                                 "internal_rotation": (-90, 90.0),
+        #                             },
+        #                             negate_axes={
+        #                                 "flexion": False,
+        #                                 "adduction": True,
+        #                                 "internal_rotation": False,
+        #                             })        
 
         self.right_elbow = Joint(bone=skeleton.right_lower_arm, left_side=False,
                                  primary_name="right_elbow", secondary_name="right_lower_arm",
