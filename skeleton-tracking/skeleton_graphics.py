@@ -298,7 +298,11 @@ class VisualSkeleton(TransformNode):
         for bone in self._get_all_bones():
             bone.set_axis_order(axis_order)
 
-    def set_tpose(self):
+    def set_tpose(self, skeleton: Skeleton[Bone] = None):
+        backend = self.backend
+        if skeleton is not None:
+            backend = skeleton
+
         #Defined in Forward, Up, Right space, conver to current space
         order = AxisOrder("NUE")
 
@@ -307,33 +311,33 @@ class VisualSkeleton(TransformNode):
         }
 
         #Revert all bones back to identity
-        for bone in self.backend.get_all_bones():
+        for bone in backend.get_all_bones():
             bone_to_mode_cache[bone] = bone.mode
             bone.mode = BoneMode.STATIC_LOCAL
             bone.local_rotation = [0, 0, 0, 1]
 
         #Make sure axis order is matching the backend skeleton for correct application of the T-Pose rotations
-        self.set_axis_order(self.backend.axis_order)
+        self.set_axis_order(backend.axis_order)
 
         #Modify the few bones that are not identity in the T-Pose
-        self.backend.right_upper_arm.local_rotation = order.swap_to(
+        backend.right_upper_arm.local_rotation = order.swap_to(
             self.axis_order, yl_quat.quat_from_euler([-90], "x", degrees=True), 
             rotational=True)
-        self.backend.right_lower_arm.local_rotation = order.swap_to(
+        backend.right_lower_arm.local_rotation = order.swap_to(
             self.axis_order, yl_quat.quat_from_euler([90], "y", degrees=True), 
             rotational=True)
 
-        self.backend.left_upper_arm.local_rotation = order.swap_to(
+        backend.left_upper_arm.local_rotation = order.swap_to(
             self.axis_order, yl_quat.quat_from_euler([90], "x", degrees=True), 
             rotational=True)
-        self.backend.left_lower_arm.local_rotation = order.swap_to(
+        backend.left_lower_arm.local_rotation = order.swap_to(
             self.axis_order, yl_quat.quat_from_euler([-90], "y", degrees=True), 
             rotational=True)
         
         self.update_pose()
 
         #Swap bones back to their original modes
-        for bone in self.backend.get_all_bones():
+        for bone in backend.get_all_bones():
             bone.mode = bone_to_mode_cache[bone]
 
     def _get_all_bones(self) -> list[VisualBone]:
