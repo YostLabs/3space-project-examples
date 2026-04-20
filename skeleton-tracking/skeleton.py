@@ -48,6 +48,9 @@ class Bone:
         else:
             self.set_dirty()
 
+        #Global rotation changed directly, children must be marked dirty
+        self.set_children_dirty()
+
     @property
     def local_rotation(self):
         if self.__local_rotation_dirty:
@@ -67,6 +70,9 @@ class Bone:
         else:
             self.set_dirty()
 
+        #Global rotation changed indirectly, children must be marked dirty
+        self.set_children_dirty()
+
     def update_local_rotation_from_global(self):
         parent_global = self.parent.global_rotation if self.parent else [0, 0, 0, 1]
         self.__local_rotation = yl_quat.quat_mul(yl_quat.quat_inverse(parent_global), self.__global_rotation)
@@ -78,6 +84,10 @@ class Bone:
         self.__global_rotation = yl_quat.quat_mul(parent_global, self.__local_rotation)
         self.__global_rotation_dirty = False
 
+    def set_children_dirty(self):
+        for child in self.children:
+            child.set_dirty()
+
     def set_dirty(self):
         """
         Marks this bone and all its childeren as dirty
@@ -88,9 +98,12 @@ class Bone:
             self.__local_rotation_dirty = True
         elif self.__mode == BoneMode.STATIC_LOCAL:
             self.__global_rotation_dirty = True
-        
-        for child in self.children:
-            child.set_dirty()
+
+            #A bone's local/global orientation is only affected by its parent's global orientation.
+            #Therefore, if the global rotation of the parent becomes dirty, then the children must
+            #also be marked dirty regardless of their mode, since both modes depend on the parent's
+            #global orientation to compute their dependent orientation.
+            self.set_children_dirty()
 
     #---------------------HIERARCHY LOGIC---------------------
 
