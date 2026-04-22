@@ -189,6 +189,18 @@ class ThreespaceSkeleton(Skeleton[ThreespaceBone]):
         """
         Calibrate all sensors. 
         Call while standing in the same pose as the skeleton model.
+
+        Args:
+            rotate_root: If true, will rotate the root bone to face the same global direction as the
+                sensor that determined the facing direction during calibration. If the root bone has a sensor,
+                or if tare_sensors is true, this has no effect since the root will already be aligned to the facing direction.
+            tare_sensors: If true, will tare sensors so the pose after calibration matches
+                what the skeleton pose/facing was during calibration. This also allows calibrate_sensors to be
+                called again later to reset the skeleton orientation such that forward is the way you are facing.
+        
+        Note: If both rotate_root and tare_sensors are false, the skeleton pose will not make much sense unless the
+        root bone (pelvis) has a sensor connected to it. Also, if tare_sensors is supplied, rotate_root has no effect.
+        Generally, it's recommended to tare_sensors, which also allows resetting the skeleton orientation regardless of facing.
         """
 
         #Used to determine forward direction.
@@ -206,11 +218,11 @@ class ThreespaceSkeleton(Skeleton[ThreespaceBone]):
                 bone.set_yaw_offset(offset)
             bone.calibrate_sensor(tare_sensors)
 
-            #Bones that don't have sensors will not appear correct relative to the rest of the model
-            #unless the bones with sensors are tared to match the expected pose, or the bones without sensors
-            #are instead rotated to match the initial facing of the model.
-            if rotate_root and not tare_sensors and offset is not None and not bone._sensor:
-                bone.global_rotation = yl_quat.quat_mul(offset, bone.global_rotation)
+        #Bones that don't have sensors will not appear correct relative to the rest of the model
+        #unless the bones with sensors are tared to match the expected pose, or the bones without sensors
+        #are instead rotated to match the initial facing of the model.
+        if rotate_root and not tare_sensors and offset is not None and not self.pelvis._sensor:
+            self.pelvis.global_rotation = yl_quat.quat_mul(offset, self.pelvis.global_rotation)
 
     def start_updating(self):
         """Start streaming on all bones that have sensors assigned."""

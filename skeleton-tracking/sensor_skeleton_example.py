@@ -87,8 +87,12 @@ print()
 #--------------------CONNECT TO SENSORS AND ASSIGN TO BONES-------------------
 
 if "sk_pelvis" not in discovered_coms:
+    #This is only required because it is the sensor with a defined forward axis so the
+    #skeleton knows which way forward is. Feel free to change this if you want to use
+    #a different sensor.
     print("Failed to discover required pelvis, exiting...")
     exit()
+threespace_skeleton.pelvis.set_forward_axis('y')
 
 for com in discovered_coms.values():
     fail_count = 0
@@ -107,7 +111,6 @@ for com in discovered_coms.values():
 
 #---------------------CALIBRATION-------------------
 
-threespace_skeleton.pelvis.set_forward_axis('y')
 def recalibrate_sensors():
     print("Stand in skeleton pose to calibrate sensors...")
 
